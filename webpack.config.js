@@ -10,8 +10,7 @@ module.exports = {
   },
   output: {
     filename: 'bundle.js',
-    path: path.resolve(__dirname, 'dist'),
-    library: 'maps_project'
+    path: path.resolve(__dirname, 'dist')
   },
   module : {
     rules: [

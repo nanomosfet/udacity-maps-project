@@ -19,48 +19,9 @@
 
 </head>
 <body>
-	<script src="./bundle.js"></script>
 	<div id="map"></div>
-
-	<script>
-		var map;
-		var markers = [];
-		var haightAshbury = {lat: 37.769, lng: -122.446}
-      function initMap() {
-        map = new google.maps.Map(document.getElementById('map'), {
-          zoom: 6,
-          center: haightAshbury
-        });
-        maps_project.addSurfSpotMarkers();
-      }
-
-      function setMapOnAll(map) {
-       	for (var i = 0; i < markers.length; i++) {
-          markers[i].setMap(map);
-        }
-      }
-
-      function addMarker(location, contentString) {
-        var marker = new google.maps.Marker({
-          position: location,
-          map: map
-        });
-        var infoWindow = new google.maps.InfoWindow({
-        	content: contentString
-        });
-        marker.addListener('click', function() {
-        	infoWindow.open(map, marker);
-        });
-
-        markers.push(marker);
-      }
-
-      function showMarkers() {
-      	setMapOnAll(map);
-      }
-    </script>
-	<script async defer	src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCIw77AT33fN4gObr96dtGWKuyYfmO5Tx8&callback=initMap">
-    </script>
+	<script src="./bundle.js"></script>
+	
 	
 </body>
 </html>
