@@ -15,7 +15,6 @@ class GoogleMaps {
         this.key = key;
         this.element = element;
         this.sv = null;
-        this.markerCluster = null;
 
         this.setStreetView = this.setStreetView.bind(this);
         this.zoomInToLocation = this.zoomInToLocation.bind(this);
@@ -107,7 +106,7 @@ class GoogleMaps {
     }
     toggleBounce(markerKey) {
       const marker = this.markers.filter((marker) => marker.key == markerKey)[0].marker;
-      if (marker.getAnimation() !== null) {
+      if (marker.getAnimation() != null) {
         marker.setAnimation(null);
       } else {
         marker.setAnimation(this.googleMaps.Animation.BOUNCE);
