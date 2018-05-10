@@ -6,8 +6,11 @@ const getSurfSpots = () => {
     return fetch('http://api.spitcast.com/api/spot/all')
         .then(res => res.json());
 };
-
 class GoogleMaps {
+    /*
+    This class wraps the load-google-maps-api so that we can
+    access the map functionality in an easy way.
+    */
     constructor(key, element) {
         this.map = null;
         this.googleMaps = null;
@@ -22,6 +25,10 @@ class GoogleMaps {
     }
 
     loadMaps() {
+        /*
+        Needed to provide some kind of promise so that we know when the
+        map is loaded.
+        */
         const key = this.key;
         const element = this.element;
         return loadGoogleMapsApi({'key': key})
@@ -45,6 +52,10 @@ class GoogleMaps {
     }
 
     addMarker(location, contentString, key) {
+        /*
+        This adds a marker to the map and makes a key that we can later
+        get the marker from.
+        */
         const googleMaps = this.googleMaps;
         const zoomInToLocation = this.zoomInToLocation;
         const self = this;
@@ -111,7 +122,6 @@ class GoogleMaps {
       } else {
         marker.setAnimation(this.googleMaps.Animation.BOUNCE);
         setTimeout(() => (marker.setAnimation(null)), 5000);
-
       }
     }
 
@@ -124,11 +134,16 @@ function Spot(data) {
 }
 
 function SurfSpotMapViewModel() {
+    /*
+    This is the ViewModel for Knockout js. It uses the spit cast api to get the data,
+    display the data, and filter the data. It also uses the Google Maps Wrapper class to
+    interface with the map/
+    */
     var self = this;
+    // Need to initialize the map and do some ajax requests to initialize the data
     this.surfSpotMap = new GoogleMaps(
         'AIzaSyCIw77AT33fN4gObr96dtGWKuyYfmO5Tx8',
         document.getElementById('map'));
-
     this.spots = ko.observableArray([]);
     getSurfSpots().then(
         (result) => {
@@ -171,7 +186,7 @@ function SurfSpotMapViewModel() {
         }
 
     });
-
+    // This renders the markers anytime selectedCounty Changes
     this.renderMarkers = ko.computed(() => {
         if (this.surfSpotMap.googleMaps !== null) {
             this.surfSpotMap.clearMarkers();
