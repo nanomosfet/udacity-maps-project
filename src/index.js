@@ -1,5 +1,6 @@
 import { createClient } from '@google/maps';
 import loadGoogleMapsApi from 'load-google-maps-api';
+import ko from 'knockout';
 
 const getSurfSpots = () => {
 	return fetch('http://api.spitcast.com/api/spot/all')
@@ -14,6 +15,7 @@ class GoogleMaps {
 		this.key = key;
 		this.element = element;
 		this.sv = null;
+		this.markerCluster = null;
 
 		this.setStreetView = this.setStreetView.bind(this);
 		this.zoomInToLocation = this.zoomInToLocation.bind(this);
@@ -43,11 +45,12 @@ class GoogleMaps {
 			)
 	}
 
-	addMarker(location, contentString) {
+	addMarker(location, contentString, key) {
 		const googleMaps = this.googleMaps;
 		const sv = this.sv;
 		const setStreetView = this.setStreetView;
 		const zoomInToLocation = this.zoomInToLocation;
+		const self = this;
         let marker = new googleMaps.Marker({
         	position: location,
           	map: this.map
@@ -56,11 +59,31 @@ class GoogleMaps {
         	content: contentString
         });
         marker.addListener('click', function() {
+        	self.closeAllInfoWindows()
         	infoWindow.open(this.map, marker);
         	zoomInToLocation(marker.getPosition());
+        	self.toggleBounce(marker);
         });
 
-        this.markers.push(marker);
+        this.markers.push({marker: marker, key: key, infoWindow: infoWindow});
+        
+    }
+
+    getMarker(key) {
+    	const marker = this.markers.filter((marker) => marker.key == key);
+    	console.log(marker)
+    	return marker[0];
+
+    }
+    openInfoWindow(key) {
+    	const marker = this.markers.filter((marker) => marker.key == key);
+    	console.log(marker)
+    	marker[0].infoWindow.open(this.map, marker[0].marker);
+    }
+    closeAllInfoWindows() {
+    	this.markers.map((marker) => {
+    		marker.infoWindow.close()
+    	})
     }
 
 
@@ -74,46 +97,124 @@ class GoogleMaps {
     	
     }
 
-    zoomInToLocation(location) {
-    	this.map.setZoom(15);
+    zoomInToLocation(location, zoom=15) {
+    	this.map.setZoom(zoom);
     	this.map.setCenter(location);
 
     }
 
+    clearMarkers() {
+    	this.markers.map((marker) => {
+    		marker.marker.setMap(null);
+    	});
+    	this.markers = [];
+    }
+    toggleBounce(marker) {
+	  if (marker.getAnimation() !== null) {
+	    marker.setAnimation(null);
+	  } else {
+	  	marker.setAnimation(this.googleMaps.Animation.BOUNCE);
+	  	setTimeout(() => (marker.setAnimation(null)), 1250);
+	    
+	  }
+	}
+
+}
+function Spot(data) {
+	this.spot_name = ko.observable(data.spot_name)
+	this.county_name = ko.observable(data.county_name)
+	this.latitude = ko.observable(data.latitude)
+	this.longitude = ko.observable(data.longitude)
 }
 
-let surfSpotMap = new GoogleMaps('AIzaSyCIw77AT33fN4gObr96dtGWKuyYfmO5Tx8', document.getElementById('map'));
-surfSpotMap.loadMaps().then(
-	() => {
-		addSurfSpotMarkers();
-
-	}
-)
-
-
-const addSurfSpotMarkers = () => {
+function SurfSpotMapViewModel() {
+	var self = this;
+	this.surfSpotMap = new GoogleMaps(
+		'AIzaSyCIw77AT33fN4gObr96dtGWKuyYfmO5Tx8',
+		document.getElementById('map'));
+	
+	this.spots = ko.observableArray([])
 	getSurfSpots().then(
-		(surfSpots) => {
-			surfSpots.map(
-				(surfSpot) => {
-					const spotDescription = "<div>"
-					+"<h2>Name: "+surfSpot.spot_name+"</h2>"
-					+"<h3>County: "+surfSpot.county_name+"</h3>"
-					+"</div>"
-					surfSpotMap.addMarker({lat: surfSpot.latitude, lng: surfSpot.longitude}, spotDescription);
-
-				}
-			);
+		(result) => {
+			const mappedSpots = result.map((item) => {return new Spot(item)});
+			this.spots(mappedSpots);
+			this.surfSpotMap.loadMaps().then(
+				() => {
+					mappedSpots.map(
+						(surfSpot) => {
+							const spotDescription = "<div>"
+							+"<h4>Name: "+surfSpot.spot_name()+"</h4>"
+							+"<h5>County: "+surfSpot.county_name()+"</h5>"
+							+"</div>"
+							this.surfSpotMap.addMarker({lat: surfSpot.latitude(), lng: surfSpot.longitude()}, spotDescription, surfSpot.spot_name());
+						});
+					}
+			)
+			
 		},
 		(error) => {
-			console.log(error);
+			alert('There was an error getting the API')
+		})
+	this.countyNames = ko.computed(() => {
+		let allSpots = this.spots();
+		let countyNames = ['All']
+		allSpots.map((spot) => {
+			if (!countyNames.includes(spot.county_name())) {
+				countyNames.push(spot.county_name())
+			}
+		})
+		return countyNames;
+	})
+	this.selectedCounty = ko.observable('All');
+
+	this.filteredSpots = ko.computed(() => {
+		if(this.selectedCounty() == 'All') {
+			return this.spots()
+		} else {
+			return this.spots().filter(spot => spot.county_name() == this.selectedCounty());
 		}
-	)
-}
+		
+	});
 
-// module.exports = {
-// 	addSurfSpotMarkers: () => {
-// 		addSurfSpotMarkers();
+	this.renderMarkers = ko.computed(() => {
+		if (this.surfSpotMap.googleMaps != null) {
+			this.surfSpotMap.clearMarkers();
+			this.filteredSpots().map((surfSpot) => {
+				const spotDescription = "<div>"
+					+"<h2>Name: "+surfSpot.spot_name()+"</h2>"
+					+"<h3>County: "+surfSpot.county_name()+"</h3>"
+					+"</div>"
+				this.surfSpotMap.addMarker({lat: surfSpot.latitude(), lng: surfSpot.longitude()}, spotDescription, surfSpot.spot_name());
+			});
+			const filSpots = self.filteredSpots()
+			console.log(filSpots.length/2)
+			self.surfSpotMap.zoomInToLocation({
+				lat:filSpots[Math.floor(filSpots.length/2)].latitude(),
+				lng:filSpots[Math.floor(filSpots.length/2)].longitude()
+			}, 10)
 
-// 	}
-// }
+
+		}
+		console.log(this.selectedCounty())
+
+	});
+
+	this.ZoomToSpot = function(spot) {
+		document.getElementById('menu').click();
+		console.log(self.surfSpotMap.getMarker(spot.spot_name()));
+		self.surfSpotMap.closeAllInfoWindows();
+		self.surfSpotMap.openInfoWindow(spot.spot_name());
+		self.surfSpotMap.zoomInToLocation({
+			lat: spot.latitude(), lng: spot.longitude()
+		})
+	}
+
+	this.goToStreetView = function(spot) {
+		self.surfSpotMap.setStreetView({
+			lat: spot.latitude(), lng: spot.longitude()
+		});
+	}
+
+};
+
+ko.applyBindings(new SurfSpotMapViewModel());
